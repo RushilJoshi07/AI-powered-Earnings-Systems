@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+notebooks/
+data/raw/earnings_calls.pkl
+data/raw/training_data.csv
+data/cleaned/training_data_cleaned.csv
+*.log
+.DS_Store
