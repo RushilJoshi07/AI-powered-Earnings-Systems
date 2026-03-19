@@ -210,15 +210,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+# @st.cache_data(ttl=86400)
+# def get_company_name(ticker):
+#     # fetches real company name from yfinance
+#     # cached for 24 hours so we only call yfinance once per ticker per day
+#     try:
+#         info = yf.Ticker(ticker).info
+#         return info.get("longName") or info.get("shortName") or ticker
+#     except Exception:
+#         return ticker
+
 @st.cache_data(ttl=86400)
+def load_company_names():
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(BASE_DIR, "data", "company_names.csv")
+    df = pd.read_csv(path)
+    return dict(zip(df["symbol"], df["name"]))
+
 def get_company_name(ticker):
-    # fetches real company name from yfinance
-    # cached for 24 hours so we only call yfinance once per ticker per day
-    try:
-        info = yf.Ticker(ticker).info
-        return info.get("longName") or info.get("shortName") or ticker
-    except Exception:
-        return ticker
+    names = load_company_names()
+    return names.get(ticker, ticker)
 
 
 def get_tone_from_polarity(polarity):
@@ -588,51 +599,71 @@ def main():
         st.markdown('<div class="section-title">📊 Sentiment Analysis</div>', unsafe_allow_html=True)
         render_sentiment_cards(company_data)
 
-        st.markdown('<div class="section-title">📈 Stock Movement vs S&P 500</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📈 Stock Performance After Earnings</div>', unsafe_allow_html=True)
 
-        with st.spinner("Loading price data..."):
-            stock_df, spy_df = get_stock_chart_data(
-                company_data["symbol"],
-                company_data["date"]
-            )
+        movement = company_data.get("movement_pct")
+        excess = company_data.get("excess_return")
 
-        if stock_df is not None:
-            fig, excess_return = build_stock_chart(
-                company_data["symbol"],
-                company_data["date"],
-                stock_df,
-                spy_df
-            )
+        col1, col2, col3, col4 = st.columns(4)
 
-            col_chart, col_stats = st.columns([3, 1])
-
-            with col_chart:
-                st.plotly_chart(fig, use_container_width=True)
-
-            with col_stats:
-                excess_color = "#10b981" if excess_return >= 0 else "#f43f5e"
-                excess_label = "Outperformed S&P 500" if excess_return >= 0 else "Underperformed S&P 500"
-                excess_arrow = "↑" if excess_return >= 0 else "↓"
+        with col1:
+            if movement is not None and not pd.isna(movement):
+                move_color = "#10b981" if float(movement) >= 0 else "#f43f5e"
+                move_arrow = "↑" if float(movement) >= 0 else "↓"
                 st.markdown(f"""
-                <div class="metric-card" style="margin-top: 10px">
-                    <div class="metric-label">20-Day Excess Return</div>
-                    <div class="metric-value" style="color: {excess_color}">{excess_arrow} {abs(excess_return):.1f}%</div>
-                    <div class="metric-sub">{excess_label} over 20 days</div>
+                <div class="metric-card" style="border-top: 2px solid {move_color}">
+                    <div class="metric-label">Stock Movement</div>
+                    <div class="metric-value" style="color: {move_color}">{move_arrow} {abs(float(movement)):.1f}%</div>
+                    <div class="metric-sub">3 days after earnings</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div class="metric-card">
+                    <div class="metric-label">Stock Movement</div>
+                    <div class="metric-value" style="color: #475569">N/A</div>
+                    <div class="metric-sub">not available</div>
                 </div>
                 """, unsafe_allow_html=True)
 
+        with col2:
+            if excess is not None and not pd.isna(excess):
+                excess_color = "#10b981" if float(excess) >= 0 else "#f43f5e"
+                excess_arrow = "↑" if float(excess) >= 0 else "↓"
+                excess_label = "Outperformed S&P 500" if float(excess) >= 0 else "Underperformed S&P 500"
                 st.markdown(f"""
-                <div class="metric-card" style="margin-top: 10px">
-                    <div class="metric-label">Earnings Date</div>
-                    <div class="metric-value" style="color: #e2e8f0; font-size: 14px">{company_data['date']}</div>
-                    <div class="metric-sub">{company_data['quarter']}</div>
+                <div class="metric-card" style="border-top: 2px solid {excess_color}">
+                    <div class="metric-label">Excess Return vs S&P 500</div>
+                    <div class="metric-value" style="color: {excess_color}">{excess_arrow} {abs(float(excess)):.1f}%</div>
+                    <div class="metric-sub">{excess_label}</div>
                 </div>
                 """, unsafe_allow_html=True)
-        else:
-            st.markdown(
-                '<div style="color: #475569; font-size: 13px; padding: 20px 0">Price data not available for this period.</div>',
-                unsafe_allow_html=True
-            )
+            else:
+                st.markdown("""
+                <div class="metric-card">
+                    <div class="metric-label">Excess Return vs S&P 500</div>
+                    <div class="metric-value" style="color: #475569">N/A</div>
+                    <div class="metric-sub">not available</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">Earnings Date</div>
+                <div class="metric-value" style="color: #e2e8f0; font-size: 16px">{company_data['date']}</div>
+                <div class="metric-sub">{company_data['quarter']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col4:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">Sentiment Confidence</div>
+                <div class="metric-value" style="color: #00d4ff; font-size: 20px">{company_data['positive_score']:.1%}</div>
+                <div class="metric-sub">positive language detected</div>
+            </div>
+            """, unsafe_allow_html=True)
 
         st.markdown('<div class="section-title">🤖 AI Earnings Summary</div>', unsafe_allow_html=True)
         st.markdown(f"""

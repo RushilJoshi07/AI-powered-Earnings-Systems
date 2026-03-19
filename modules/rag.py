@@ -75,8 +75,9 @@ def lookup_company(ticker):
             "neutral_score": float(latest["neutral_score"]),
             "polarity": float(latest["polarity"]),
             "overall_sentiment": latest["overall_sentiment"],
-            "movement_pct": movement_pct,
-            "price_volatility": price_volatility
+            "movement_pct": float(latest["movement_pct"]) if not pd.isna(latest["movement_pct"]) else None,
+            "excess_return": float(latest["excess_return"]) if "excess_return" in latest and not pd.isna(
+                latest["excess_return"]) else None
         }
 
     except Exception as e:
