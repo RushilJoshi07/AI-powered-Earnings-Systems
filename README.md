@@ -1,3 +1,12 @@
+---
+title: EarningsEdge
+emoji: 📈
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # EarningsEdge — AI-Powered Earnings Intelligence Platform
 
 > Analyze what S&P 500 executives say on earnings calls and understand what it means for the stock.
